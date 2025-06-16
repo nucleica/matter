@@ -3,8 +3,7 @@ import {
   systemctl,
   type SystemctlAction,
 } from "./src/systemctl.ts";
-import { lls } from "@nucleic/turtle";
-import { log } from "@nucleic/sna";
+import { lls, log } from "@nucleic/turtle";
 
 export const SERVICES_PATH = "/etc/systemd/system";
 
@@ -17,11 +16,7 @@ export class Matter {
     public serviceName: string,
     private exec: string,
     private cwd: string,
-  ) {
-    log(`\n${serviceName}\n`);
-
-    this.check();
-  }
+  ) {}
 
   async check() {
     const status = await this.action("status", this.serviceName);
@@ -42,7 +37,25 @@ export class Matter {
         log(status);
       }
     } else {
-      log((status as { stdout: string })?.stdout);
+      const { stdout, stderr } = status as { stdout: string; stderr: string };
+
+      stderr && log(stderr);
+
+      stdout && log(
+        this.serviceName,
+        stdout.split("\n").filter((l) =>
+          ["Active", "Memory", "CPU"].some((k) => l.includes(k))
+        )
+          .join("\n"),
+      );
+
+      if (!stdout && stderr) {
+        addService(
+          this.serviceName,
+          this.exec,
+          this.cwd,
+        );
+      }
     }
   }
 

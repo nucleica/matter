@@ -1,5 +1,5 @@
-import { log } from "@nucleic/sna";
-import { servicePath, SERVICES_PATH } from "../matter.ts";
+import { log } from "@nucleic/turtle";
+import { servicePath } from "../matter.ts";
 
 export type SystemctlAction =
   | "status"
