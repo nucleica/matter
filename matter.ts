@@ -11,6 +11,14 @@ export function servicePath(name: string): string {
   return `${SERVICES_PATH}/${name}.service`;
 }
 
+export const MATTER_CONFIG_NAME = "setup.matter.json";
+
+export interface MatterConfig {
+  name: string;
+  exec: string;
+  cwd: string;
+}
+
 export class Matter {
   constructor(
     public serviceName: string,
@@ -18,8 +26,26 @@ export class Matter {
     private cwd: string,
   ) {}
 
-  async check() {
+  async check(): Promise<{ stdout: string; stderr: string }> {
     const status = await this.action("status", this.serviceName);
+
+    const { stdout, stderr } = status as { stdout: string; stderr: string };
+
+    stderr && log(stderr);
+
+    stdout && log(
+      this.serviceName,
+      stdout.split("\n").filter((l) =>
+        ["Active", "Memory", "CPU"].some((k) => l.includes(k))
+      )
+        .join("\n"),
+    );
+
+    return { stderr, stdout };
+  }
+
+  async install() {
+    const status = await this.check();
 
     if (status instanceof Error) {
       const dir = await Deno.readFile(
@@ -37,18 +63,7 @@ export class Matter {
         log(status);
       }
     } else {
-      const { stdout, stderr } = status as { stdout: string; stderr: string };
-
-      stderr && log(stderr);
-
-      stdout && log(
-        this.serviceName,
-        stdout.split("\n").filter((l) =>
-          ["Active", "Memory", "CPU"].some((k) => l.includes(k))
-        )
-          .join("\n"),
-      );
-
+      const { stderr, stdout } = status;
       if (!stdout && stderr) {
         addService(
           this.serviceName,
