@@ -1,4 +1,3 @@
-import { log } from "@nucleic/turtle";
 import { servicePath } from "../matter.ts";
 
 export type SystemctlAction =
@@ -18,7 +17,12 @@ export type SystemctlAction =
   | "unmask"
   | "logs";
 
-export function addService(serviceName: string, exec: string, cwd: string) {
+export function addService(
+  serviceName: string,
+  exec: string,
+  cwd: string,
+  port: number,
+) {
   const unit = [
     "[Unit]",
     // 'Description="test"',
@@ -28,7 +32,7 @@ export function addService(serviceName: string, exec: string, cwd: string) {
     "[Service]",
     "Type=simple",
     `WorkingDirectory=${cwd}`,
-    `ExecStart=${exec}`,
+    `ExecStart=${exec} ${port}`,
     'Environment="LLAMA_LOG_LEVEL=info"',
     // "Restart=always",
   ];
@@ -40,12 +44,12 @@ export function addService(serviceName: string, exec: string, cwd: string) {
 
   const final = [unit, service, install].map((c) => c.join("\n")).join("\n\n");
 
-  Deno.writeFile(servicePath(serviceName), new TextEncoder().encode(final))
-    .then(() => {
-      log(`Service ${serviceName} created`);
-    }).catch((error) => {
-      log(`Error creating service ${serviceName}: ${error.message}`);
-    });
+  return Deno.writeFile(
+    servicePath(serviceName),
+    new TextEncoder().encode(final),
+  )
+    .then(() => ({ installed: true }))
+    .catch((error) => ({ installed: false, error }));
 }
 
 export function systemctl(action: SystemctlAction, service: string): string[] {

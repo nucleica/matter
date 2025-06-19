@@ -4,6 +4,7 @@ import {
   systemctl,
   type SystemctlAction,
 } from "./src/systemctl.ts";
+import { EventEmitter } from "node:events";
 
 export const SERVICES_PATH = "/etc/systemd/system";
 
@@ -19,24 +20,71 @@ export interface MatterConfig {
   cwd: string;
 }
 
-export class Matter {
+export class Matter extends EventEmitter {
   constructor(
     public serviceName: string,
     private exec: string,
     private cwd: string,
-  ) {}
+    public port: number,
+  ) {
+    super();
+    this.check();
+  }
+
+  async start() {
+    return await this.action("start", this.serviceName);
+  }
+
+  async stop() {
+    return await this.action("stop", this.serviceName);
+  }
+
+  async restart() {
+    return await this.action("restart", this.serviceName);
+  }
+
+  update(part: Partial<Matter>) {
+    this.emit("update", part);
+    Object.assign(this, part);
+  }
+
+  installed: boolean = false;
+  active: boolean = false;
+  failed: boolean = false;
+
+  memory?: string;
+  cpu?: string;
 
   async check(): Promise<{ stdout: string; stderr: string }> {
     const status = await this.action("status", this.serviceName);
     const { stdout, stderr } = status as { stdout: string; stderr: string };
 
-    return {
+    const response = {
       stderr,
       stdout: stdout.split("\n").filter((l) =>
-        ["Active", "Memory", "CPU"].some((k) => l.includes(k))
+        ["Active", "Memory", "CPU", "Duration"].some((k) => l.includes(k))
       )
         .join("\n"),
     };
+
+    let update: Partial<Matter> = {};
+
+    if (response.stdout) {
+      update = { ...update, installed: !!response.stdout.includes("Active:") };
+
+      if (response.stdout.includes("failed")) {
+        update = { ...update, active: false, failed: true };
+      } else if (response.stdout.includes("inactive")) {
+        update = { ...update, active: false, failed: false };
+      } else if (response.stdout.includes("active")) {
+        update = { ...update, active: true, failed: false };
+      }
+      // !!response.stdout.includes("dead");
+
+      this.update(update);
+    }
+
+    return response;
   }
 
   async install() {
@@ -53,19 +101,23 @@ export class Matter {
           this.serviceName,
           this.exec,
           this.cwd,
+          this.port,
         );
       } else {
         return status;
       }
     } else {
       const { stderr, stdout } = status;
-      
+
       if (!stdout && stderr) {
         return addService(
           this.serviceName,
           this.exec,
           this.cwd,
+          this.port,
         );
+      } else {
+        return stdout;
       }
     }
   }
