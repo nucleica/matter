@@ -1,6 +1,6 @@
 {
   "name": "@nucleic/matter",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "exports": "./main.ts",
   "tasks": {
     "dev": "deno run --allow-run --allow-read --allow-write main.ts"

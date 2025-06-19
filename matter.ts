@@ -78,6 +78,13 @@ export class Matter extends EventEmitter {
         update = { ...update, active: false, failed: false };
       } else if (response.stdout.includes("active")) {
         update = { ...update, active: true, failed: false };
+        const data = response.stdout.replace("Memory: ", "").replace(
+          "CPU: ",
+          "",
+        )
+          .split("\n").slice(1).map((r) => r.trim());
+
+        update = { ...update, memory: data[0], cpu: data[1] };
       }
       // !!response.stdout.includes("dead");
 
