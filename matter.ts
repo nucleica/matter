@@ -1,9 +1,9 @@
+import { lls } from "@nucleic/turtle";
 import {
   addService,
   systemctl,
   type SystemctlAction,
 } from "./src/systemctl.ts";
-import { lls, log } from "@nucleic/turtle";
 
 export const SERVICES_PATH = "/etc/systemd/system";
 
@@ -28,20 +28,15 @@ export class Matter {
 
   async check(): Promise<{ stdout: string; stderr: string }> {
     const status = await this.action("status", this.serviceName);
-
     const { stdout, stderr } = status as { stdout: string; stderr: string };
 
-    stderr && log(stderr);
-
-    stdout && log(
-      this.serviceName,
-      stdout.split("\n").filter((l) =>
+    return {
+      stderr,
+      stdout: stdout.split("\n").filter((l) =>
         ["Active", "Memory", "CPU"].some((k) => l.includes(k))
       )
         .join("\n"),
-    );
-
-    return { stderr, stdout };
+    };
   }
 
   async install() {
@@ -54,18 +49,19 @@ export class Matter {
         .catch(() => false);
 
       if (!dir) {
-        addService(
+        return addService(
           this.serviceName,
           this.exec,
           this.cwd,
         );
       } else {
-        log(status);
+        return status;
       }
     } else {
       const { stderr, stdout } = status;
+      
       if (!stdout && stderr) {
-        addService(
+        return addService(
           this.serviceName,
           this.exec,
           this.cwd,
